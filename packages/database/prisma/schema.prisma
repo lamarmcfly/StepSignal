@@ -1,0 +1,673 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// MULTI-TENANCY & CORE ENTITIES
+// ============================================================================
+
+model Institution {
+  id        String   @id @default(uuid())
+  name      String
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users              User[]
+  students           Student[]
+  examTypes          ExamType[]
+  institutionSettings InstitutionSettings?
+
+  @@map("institutions")
+}
+
+model InstitutionSettings {
+  id            String @id @default(uuid())
+  institutionId String @unique @map("institution_id")
+
+  // Risk thresholds (0-100 scale)
+  lowRiskThreshold      Float @default(25.0) @map("low_risk_threshold")      // 0-25 = low
+  mediumRiskThreshold   Float @default(50.0) @map("medium_risk_threshold")   // 25-50 = medium
+  highRiskThreshold     Float @default(75.0) @map("high_risk_threshold")     // 50-75 = high
+  // 75-100 = critical (implicit)
+
+  // Study plan defaults
+  defaultWeeklyHours Float @default(20.0) @map("default_weekly_hours") // Default hours per week
+  defaultDailyHoursCap Float @default(4.0) @map("default_daily_hours_cap") // Default max hours per day
+
+  // Accommodations multiplier (for students with accommodations)
+  accommodationsMultiplier Float @default(0.75) @map("accommodations_multiplier") // Reduce expected volume by 25%
+
+  // Disclaimer text for risk pages
+  disclaimerText String? @db.Text @map("disclaimer_text")
+
+  // Feature flags and customization
+  enableAutoAlerts        Boolean @default(true) @map("enable_auto_alerts")
+  enableStudyPlanEngine   Boolean @default(true) @map("enable_study_plan_engine")
+  customSettings          Json    @default("{}") @map("custom_settings") // Flexible field for future additions
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@map("institution_settings")
+}
+
+// ============================================================================
+// AUTHENTICATION & USERS
+// ============================================================================
+
+enum UserRole {
+  student
+  advisor
+  admin
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String
+  passwordHash   String   @map("password_hash")
+  role           UserRole
+  institutionId  String   @map("institution_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  student     Student?
+  sessions    Session[]
+
+  @@unique([email, institutionId])
+  @@index([institutionId])
+  @@map("users")
+}
+
+model Session {
+  id        String   @id
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// ============================================================================
+// STUDENTS
+// ============================================================================
+
+model Student {
+  id                String   @id @default(uuid())
+  userId            String   @unique @map("user_id")
+  institutionId     String   @map("institution_id")
+  classYear         Int      @map("class_year")
+  hasAccommodations Boolean  @default(false) @map("has_accommodations")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution      Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  exams            StudentExam[]
+  assessments      Assessment[]
+  riskProfile      RiskProfile?
+  alerts           Alert[]
+  interventions    Intervention[]
+  studyPlans       StudyPlan[]
+  advisorNotes     AdvisorNote[]
+  reflections      StudentReflection[]
+  flags            StudentFlag[]
+  riskOverrides    RiskOverride[]
+  riskHistory      RiskHistory[]
+
+  @@index([institutionId])
+  @@index([classYear])
+  @@map("students")
+}
+
+// ============================================================================
+// EXAMS
+// ============================================================================
+
+model ExamType {
+  id            String   @id @default(uuid())
+  institutionId String   @map("institution_id")
+  code          String
+  name          String
+  defaultWeight Float    @default(1.0) @map("default_weight")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  institution  Institution   @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  studentExams StudentExam[]
+
+  @@unique([institutionId, code])
+  @@index([institutionId])
+  @@map("exam_types")
+}
+
+model StudentExam {
+  id            String    @id @default(uuid())
+  studentId     String    @map("student_id")
+  examTypeId    String    @map("exam_type_id")
+  scheduledDate DateTime  @map("scheduled_date")
+  attemptNumber Int       @default(1) @map("attempt_number")
+  outcome       String?   // "pass", "fail", or numeric score as string
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  student        Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  examType       ExamType        @relation(fields: [examTypeId], references: [id], onDelete: Cascade)
+  studyPlanItems StudyPlanItem[]
+
+  @@index([studentId])
+  @@index([examTypeId])
+  @@index([scheduledDate])
+  @@map("student_exams")
+}
+
+// ============================================================================
+// ASSESSMENTS & ERROR TRACKING
+// ============================================================================
+
+enum AssessmentType {
+  nbme_practice  // NBME practice exam
+  nbme_shelf     // NBME shelf exam
+  cbse           // Comprehensive Basic Science Exam
+  qbank_block    // QBank practice block (UWorld, AMBOSS, etc.)
+  custom         // Custom assessment
+}
+
+model Assessment {
+  id             String         @id @default(uuid())
+  studentId      String         @map("student_id")
+  type           AssessmentType
+  name           String         // "NBME 25", "UWorld Block 14", "Psych Shelf", etc.
+  dateTaken      DateTime       @map("date_taken")
+  score          Float?         // Numeric score if available
+  percentCorrect Float?         @map("percent_correct")
+  totalQuestions Int?           @map("total_questions")
+  metadata       Json           @default("{}") // Flexible field for extra data
+  notes          String?        @db.Text
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  student        Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  errorEvents    ErrorEvent[]
+  advisorNotes   AdvisorNote[]
+  reflections    StudentReflection[]
+
+  @@index([studentId])
+  @@index([dateTaken])
+  @@index([type])
+  @@map("assessments")
+}
+
+enum ErrorType {
+  knowledge_deficit      // Didn't know the fact/concept
+  misread                // Missed key detail in question stem
+  premature_closure      // Jumped to answer without considering all options
+  time_management        // Ran out of time or rushed
+  strategy_error         // Poor test-taking approach
+}
+
+enum MedicalSystem {
+  cardiovascular
+  pulmonary
+  renal
+  gastrointestinal
+  endocrine
+  neurology
+  psychiatry
+  musculoskeletal
+  dermatology
+  reproductive
+  hematology
+  immunology
+  general
+}
+
+model ErrorEvent {
+  id           String        @id @default(uuid())
+  assessmentId String        @map("assessment_id")
+  errorType    ErrorType     @map("error_type")
+  system       MedicalSystem
+  topic        String?       // Specific topic/domain (e.g., "Heart Failure", "Diabetes Management")
+  questionRef  String?       @map("question_ref") // Question number or ID
+  reflection   String?       @db.Text // Student's reflection on the error
+  tags         String[]      @default([]) // Additional tags for categorization
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([assessmentId])
+  @@index([errorType])
+  @@index([system])
+  @@map("error_events")
+}
+
+// ============================================================================
+// RISK ASSESSMENT & ANALYTICS
+// ============================================================================
+
+enum RiskLevel {
+  low
+  medium
+  high
+  critical
+}
+
+model RiskProfile {
+  id                    String    @id @default(uuid())
+  studentId             String    @unique @map("student_id")
+  overallRiskScore      Float     @map("overall_risk_score") // 0-100 scale
+  riskLevel             RiskLevel @map("risk_level")
+
+  // Cognitive error distribution (counts by error type)
+  knowledgeDeficitCount Int       @default(0) @map("knowledge_deficit_count")
+  misreadCount          Int       @default(0) @map("misread_count")
+  prematureClosureCount Int       @default(0) @map("premature_closure_count")
+  timeManagementCount   Int       @default(0) @map("time_management_count")
+  strategyErrorCount    Int       @default(0) @map("strategy_error_count")
+
+  // System weaknesses (JSON for flexibility: { "cardiovascular": 5, "neurology": 3, ... })
+  systemWeaknesses      Json      @default("{}") @map("system_weaknesses")
+
+  // Performance trend indicators
+  trendDirection        String?   @map("trend_direction") // "improving", "stable", "declining"
+  recentPerformance     Float?    @map("recent_performance") // Average % correct in last 30 days
+
+  // Metadata
+  totalErrorsAnalyzed   Int       @default(0) @map("total_errors_analyzed")
+  lastCalculatedAt      DateTime  @map("last_calculated_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([riskLevel])
+  @@index([overallRiskScore])
+  @@index([lastCalculatedAt])
+  @@map("risk_profiles")
+}
+
+// ============================================================================
+// ALERTS & INTERVENTIONS
+// ============================================================================
+
+enum AlertType {
+  risk_threshold_exceeded    // Risk score crossed a critical threshold
+  risk_level_change         // Risk level changed (e.g., medium -> high)
+  performance_decline       // Recent performance shows decline
+  error_pattern_detected    // Specific concerning error pattern identified
+  exam_approaching          // Exam is approaching with current risk level
+  custom                    // Custom alert created by advisor
+}
+
+enum AlertSeverity {
+  info
+  warning
+  critical
+}
+
+enum AlertStatus {
+  unread
+  read
+  acknowledged
+  resolved
+}
+
+model Alert {
+  id          String        @id @default(uuid())
+  studentId   String        @map("student_id")
+  type        AlertType
+  severity    AlertSeverity
+  status      AlertStatus   @default(unread)
+  title       String
+  message     String        @db.Text
+  metadata    Json          @default("{}") // Additional context data
+
+  // Tracking
+  triggeredAt    DateTime  @default(now()) @map("triggered_at")
+  readAt         DateTime? @map("read_at")
+  acknowledgedAt DateTime? @map("acknowledged_at")
+  resolvedAt     DateTime? @map("resolved_at")
+  resolvedById   String?   @map("resolved_by_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  student        Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  interventions  Intervention[]
+  advisorNotes   AdvisorNote[]
+
+  @@index([studentId])
+  @@index([status])
+  @@index([severity])
+  @@index([triggeredAt])
+  @@map("alerts")
+}
+
+enum InterventionType {
+  meeting_scheduled        // One-on-one meeting scheduled
+  study_plan_created      // Created personalized study plan
+  resource_shared         // Shared study resources/materials
+  tutoring_recommended    // Recommended tutoring or additional support
+  exam_strategy_review    // Reviewed exam-taking strategies
+  content_review_session  // Content review session scheduled
+  wellness_check          // Mental health/wellness check-in
+  accommodation_review    // Review of accommodations
+  other
+}
+
+enum InterventionStatus {
+  pending
+  in_progress
+  completed
+  cancelled
+}
+
+model Intervention {
+  id              String             @id @default(uuid())
+  studentId       String             @map("student_id")
+  alertId         String?            @map("alert_id")
+  assignedAdvisorId String?          @map("assigned_advisor_id")
+
+  type            InterventionType
+  status          InterventionStatus @default(pending)
+  title           String
+  description     String             @db.Text
+  notes           String?            @db.Text
+
+  // Scheduling
+  scheduledDate   DateTime?          @map("scheduled_date")
+  completedDate   DateTime?          @map("completed_date")
+
+  // Outcome tracking
+  outcome         String?            @db.Text
+  followUpNeeded  Boolean            @default(false) @map("follow_up_needed")
+
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  alert   Alert?  @relation(fields: [alertId], references: [id], onDelete: SetNull)
+
+  @@index([studentId])
+  @@index([alertId])
+  @@index([status])
+  @@index([scheduledDate])
+  @@map("interventions")
+}
+
+// ============================================================================
+// STUDY PLANS & INTERVENTION ENGINE
+// ============================================================================
+
+enum StudyPlanStatus {
+  draft
+  active
+  completed
+  archived
+}
+
+model StudyPlan {
+  id          String          @id @default(uuid())
+  studentId   String          @map("student_id")
+  status      StudyPlanStatus @default(draft)
+  title       String
+  description String?         @db.Text
+
+  // Capacity settings
+  weeklyHoursAvailable Float @map("weekly_hours_available") // Hours per week student can study
+  dailyHoursCap        Float @default(4.0) @map("daily_hours_cap") // Max hours per day
+
+  // Date range
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+
+  // Configuration
+  settings Json @default("{}") // Flexible settings (constraints, preferences, etc.)
+
+  // Tracking
+  createdById String?   @map("created_by_id") // Advisor who created the plan
+  activatedAt DateTime? @map("activated_at")
+  completedAt DateTime? @map("completed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  student        Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  items          StudyPlanItem[]
+  advisorNotes   AdvisorNote[]
+  reflections    StudentReflection[]
+
+  @@index([studentId])
+  @@index([status])
+  @@index([startDate])
+  @@map("study_plans")
+}
+
+model StudyPlanItem {
+  id           String @id @default(uuid())
+  studyPlanId  String @map("study_plan_id")
+  weekNumber   Int    @map("week_number") // Week 1, 2, 3, etc. from start date
+  examId       String? @map("exam_id") // Optional: target exam for this week's focus
+
+  // Allocation
+  allocatedHours    Float @map("allocated_hours") // Hours allocated for this week
+  targetQuestions   Int   @default(0) @map("target_questions") // Question count goal
+
+  // Focus areas (derived from risk profile and weaknesses)
+  focusSystems      String[] @default([]) @map("focus_systems") // Medical systems to focus on
+  focusErrorTypes   String[] @default([]) @map("focus_error_types") // Error types to address
+  focusTopics       String[] @default([]) @map("focus_topics") // Specific topics
+
+  // Recommendations
+  recommendations   String   @db.Text // Specific study recommendations for the week
+  resourceLinks     String[] @default([]) @map("resource_links") // Links to study materials
+
+  // Progress tracking
+  completedHours    Float   @default(0) @map("completed_hours")
+  completedQuestions Int    @default(0) @map("completed_questions")
+  isCompleted       Boolean @default(false) @map("is_completed")
+
+  // Metadata
+  metadata Json @default("{}") // Additional flexible data
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  studyPlan   StudyPlan           @relation(fields: [studyPlanId], references: [id], onDelete: Cascade)
+  exam        StudentExam?        @relation(fields: [examId], references: [id], onDelete: SetNull)
+  reflections StudentReflection[]
+
+  @@index([studyPlanId])
+  @@index([weekNumber])
+  @@index([examId])
+  @@map("study_plan_items")
+}
+
+// ============================================================================
+// RISK TRACKING & HISTORY
+// ============================================================================
+
+model RiskHistory {
+  id               String    @id @default(uuid())
+  studentId        String    @map("student_id")
+  overallRiskScore Float     @map("overall_risk_score")
+  riskLevel        RiskLevel @map("risk_level")
+
+  // Snapshot of error counts at this point in time
+  knowledgeDeficitCount Int @default(0) @map("knowledge_deficit_count")
+  misreadCount          Int @default(0) @map("misread_count")
+  prematureClosureCount Int @default(0) @map("premature_closure_count")
+  timeManagementCount   Int @default(0) @map("time_management_count")
+  strategyErrorCount    Int @default(0) @map("strategy_error_count")
+
+  // Context
+  totalErrorsAnalyzed Int      @default(0) @map("total_errors_analyzed")
+  recordedAt          DateTime @default(now()) @map("recorded_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([recordedAt])
+  @@index([riskLevel])
+  @@map("risk_history")
+}
+
+// ============================================================================
+// ADVISOR TOOLS
+// ============================================================================
+
+enum NoteType {
+  general           // General observation/note
+  session           // Meeting/session note
+  risk_assessment   // Related to risk profile
+  study_plan        // Related to study plan
+  intervention      // Related to intervention
+}
+
+model AdvisorNote {
+  id            String   @id @default(uuid())
+  studentId     String   @map("student_id")
+  authorId      String   @map("author_id") // User ID of advisor who created note
+  type          NoteType @default(general)
+
+  title         String?
+  content       String   @db.Text
+
+  // Optional links to other entities
+  assessmentId  String?  @map("assessment_id")
+  studyPlanId   String?  @map("study_plan_id")
+  alertId       String?  @map("alert_id")
+
+  // Metadata
+  isPinned      Boolean  @default(false) @map("is_pinned")
+  tags          String[] @default([])
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  student    Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assessment Assessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+  studyPlan  StudyPlan?  @relation(fields: [studyPlanId], references: [id], onDelete: SetNull)
+  alert      Alert?      @relation(fields: [alertId], references: [id], onDelete: SetNull)
+
+  @@index([studentId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([type])
+  @@map("advisor_notes")
+}
+
+enum FlagStatus {
+  active
+  resolved
+  dismissed
+}
+
+enum FlagPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+model StudentFlag {
+  id          String       @id @default(uuid())
+  studentId   String       @map("student_id")
+  createdById String       @map("created_by_id") // User ID of advisor who created flag
+
+  status      FlagStatus   @default(active)
+  priority    FlagPriority @default(medium)
+
+  reason      String       @db.Text
+  notes       String?      @db.Text
+
+  // Follow-up tracking
+  dueDate     DateTime?    @map("due_date")
+  resolvedAt  DateTime?    @map("resolved_at")
+  resolvedById String?     @map("resolved_by_id")
+
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([status])
+  @@index([priority])
+  @@index([dueDate])
+  @@map("student_flags")
+}
+
+model RiskOverride {
+  id              String    @id @default(uuid())
+  studentId       String    @map("student_id")
+  overriddenById  String    @map("overridden_by_id") // User ID of advisor
+
+  // Original vs override values
+  originalRiskLevel RiskLevel @map("original_risk_level")
+  overrideRiskLevel RiskLevel @map("override_risk_level")
+
+  justification     String    @db.Text
+
+  // Duration
+  expiresAt         DateTime? @map("expires_at")
+  isActive          Boolean   @default(true) @map("is_active")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([isActive])
+  @@map("risk_overrides")
+}
+
+// ============================================================================
+// STUDENT REFLECTIONS
+// ============================================================================
+
+model StudentReflection {
+  id             String   @id @default(uuid())
+  studentId      String   @map("student_id")
+
+  // Optional links
+  assessmentId   String?  @map("assessment_id")
+  studyPlanId    String?  @map("study_plan_id")
+  studyPlanItemId String? @map("study_plan_item_id")
+
+  // Reflection content
+  content        String   @db.Text
+  voiceMemoPath  String?  @map("voice_memo_path") // Path to audio file if recorded
+
+  // Metadata
+  mood           String?  // Optional: "confident", "stressed", "neutral", etc.
+  tags           String[] @default([])
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  student       Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assessment    Assessment?    @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+  studyPlan     StudyPlan?     @relation(fields: [studyPlanId], references: [id], onDelete: SetNull)
+  studyPlanItem StudyPlanItem? @relation(fields: [studyPlanItemId], references: [id], onDelete: SetNull)
+
+  @@index([studentId])
+  @@index([createdAt])
+  @@index([assessmentId])
+  @@map("student_reflections")
+}

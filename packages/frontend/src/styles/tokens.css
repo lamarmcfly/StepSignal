@@ -1,0 +1,131 @@
+/*
+ * StepSignal Design Tokens
+ *
+ * IMPORTANT: This design system enforces a calm, clinical aesthetic.
+ * - NO gradients, glassmorphism, or neon colors
+ * - Professional medical school analytics tool aesthetic
+ * - Data-first, readable, minimal decoration
+ */
+
+:root {
+  /* ========================================================================
+   * COLORS
+   * ======================================================================== */
+
+  /* Backgrounds */
+  --color-bg-page: #f5f5f7;
+  --color-bg-card: #ffffff;
+  --color-bg-hover: #fafafa;
+
+  /* Borders */
+  --color-border-subtle: #e5e7eb;
+  --color-border-default: #d1d5db;
+
+  /* Text */
+  --color-text-main: #111827;
+  --color-text-muted: #4b5563;
+  --color-text-light: #9ca3af;
+
+  /* Primary/Accent (Deep Teal) */
+  --color-primary: #0f766e;
+  --color-primary-hover: #0d6761;
+  --color-primary-soft: #ccf0ea;
+
+  /* Status Colors */
+  --color-success: #16a34a;
+  --color-success-soft: #dcfce7;
+  --color-warning: #dc2626;
+  --color-warning-soft: #fee2e2;
+  --color-info: #0891b2;
+  --color-info-soft: #cffafe;
+
+  /* Risk Tier Colors */
+  --color-risk-low: #16a34a;
+  --color-risk-low-bg: #dcfce7;
+  --color-risk-moderate: #ea580c;
+  --color-risk-moderate-bg: #fed7aa;
+  --color-risk-high: #dc2626;
+  --color-risk-high-bg: #fee2e2;
+
+  /* ========================================================================
+   * TYPOGRAPHY
+   * ======================================================================== */
+
+  /* Font Family */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+
+  /* Font Sizes */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+
+  /* Font Weights */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* Line Heights */
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.75;
+
+  /* ========================================================================
+   * SPACING
+   * ======================================================================== */
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ========================================================================
+   * BORDER RADIUS
+   * ======================================================================== */
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-card: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  /* ========================================================================
+   * SHADOWS
+   * ======================================================================== */
+
+  /* Subtle, professional shadows - no heavy drop shadows */
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-card-hover: 0 2px 6px rgba(15, 23, 42, 0.12);
+  --shadow-dropdown: 0 4px 12px rgba(15, 23, 42, 0.15);
+
+  /* ========================================================================
+   * TRANSITIONS
+   * ======================================================================== */
+
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+
+  /* ========================================================================
+   * Z-INDEX LAYERS
+   * ======================================================================== */
+
+  --z-base: 0;
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+}

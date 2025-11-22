@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where:*)",
+      "SlashCommand(/openspec:proposal)",
+      "Bash(npm run db:generate:*)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(docker exec:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm install:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill //F //PID 6952)",
+      "Bash(curl:*)",
+      "Bash(docker network inspect:*)",
+      "Bash(taskkill //F //PID 10628)",
+      "Bash(taskkill //F //PID 36380)",
+      "Bash(docker stop:*)",
+      "Bash(docker rm:*)",
+      "Bash(taskkill //F //PID 36308)",
+      "Bash(taskkill:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker ps:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run db:migrate:*)",
+      "Bash(npm run db:push:*)",
+      "Bash(psql:*)",
+      "Bash(net stop:*)",
+      "Bash(git add:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git init:*)",
+      "Bash(git branch:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

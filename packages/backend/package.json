@@ -1,0 +1,44 @@
+{
+  "name": "@stepsignal/backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Backend API server for StepSignal",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix"
+  },
+  "dependencies": {
+    "@stepsignal/database": "*",
+    "@stepsignal/shared": "*",
+    "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.3",
+    "connect-pg-simple": "^10.0.0",
+    "cors": "^2.8.5",
+    "csv-parse": "^6.1.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-session": "^1.18.2",
+    "lucia": "^3.2.2",
+    "multer": "^2.0.2",
+    "pg": "^8.16.3",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/connect-pg-simple": "^7.0.3",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/express-session": "^1.18.2",
+    "@types/node": "^20.11.5",
+    "@types/pg": "^8.15.6",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

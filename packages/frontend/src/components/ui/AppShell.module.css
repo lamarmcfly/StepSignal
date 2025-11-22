@@ -1,0 +1,162 @@
+.appShell {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--color-bg-page);
+}
+
+/* ============================================================================
+   SIDEBAR
+   ============================================================================ */
+
+.appShell__sidebar {
+  width: 260px;
+  background-color: var(--color-bg-card);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sidebar__header {
+  padding: var(--space-6) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sidebar__logo {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--color-primary);
+  line-height: var(--leading-tight);
+}
+
+.sidebar__tagline {
+  margin: var(--space-1) 0 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-weight: var(--font-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================================================
+   NAVIGATION
+   ============================================================================ */
+
+.sidebar__nav {
+  flex: 1;
+  padding: var(--space-4) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.nav__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-radius: var(--radius-button);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.nav__item:hover {
+  background-color: var(--color-bg-muted);
+  color: var(--color-text);
+}
+
+.nav__item--active {
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary);
+  font-weight: var(--font-semibold);
+}
+
+.nav__icon {
+  font-size: var(--text-lg);
+  line-height: 1;
+}
+
+.nav__label {
+  line-height: var(--leading-tight);
+}
+
+/* ============================================================================
+   SIDEBAR FOOTER (USER INFO)
+   ============================================================================ */
+
+.sidebar__footer {
+  padding: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.user__info {
+  margin-bottom: var(--space-3);
+}
+
+.user__email {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  word-break: break-all;
+}
+
+.logout__button {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-muted);
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
+}
+
+.logout__button:hover {
+  background-color: var(--color-bg-muted);
+  color: var(--color-text);
+  border-color: var(--color-border-hover);
+}
+
+/* ============================================================================
+   MAIN CONTENT AREA
+   ============================================================================ */
+
+.appShell__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+.main__content {
+  flex: 1;
+  padding: var(--space-8);
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .appShell__sidebar {
+    display: none; /* In production, would toggle with hamburger menu */
+  }
+
+  .main__content {
+    padding: var(--space-4);
+  }
+}

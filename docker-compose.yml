@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: stepsignal-postgres
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: stepsignal_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - stepsignal_db:/var/lib/postgresql/data
+    networks:
+      - stepsignal-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: ./packages/backend/Dockerfile
+    container_name: stepsignal-backend
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/stepsignal_dev
+      - SESSION_SECRET=dev-secret-change-in-production-to-random-value
+      - FRONTEND_URL=http://localhost:5173
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - stepsignal-network
+    volumes:
+      - ./packages/backend/src:/app/packages/backend/src
+      - ./packages/shared/src:/app/packages/shared/src
+      - ./packages/database/src:/app/packages/database/src
+
+volumes:
+  stepsignal_db:
+
+networks:
+  stepsignal-network:
+    driver: bridge

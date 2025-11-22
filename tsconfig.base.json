@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "paths": {
+      "@stepsignal/shared": ["./packages/shared/src/index.ts"],
+      "@stepsignal/shared/*": ["./packages/shared/src/*"],
+      "@stepsignal/database": ["./packages/database/src/index.ts"],
+      "@stepsignal/database/*": ["./packages/database/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "build", ".next"]
+}
